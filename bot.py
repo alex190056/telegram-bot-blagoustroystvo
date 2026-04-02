@@ -9,7 +9,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 
 # ================== Настройки ==================
-API_TOKEN = os.environ.get("7914401034:AAHwS6HEGkpfd0p2-QKsk_zLaXWUtZrOk3o")
+API_TOKEN = "7914401034:AAHwS6HEGkpfd0p2-QKsk_zLaXWUtZrOk3o"
 ADMIN_ID = 281389805  # твой Telegram ID
 
 logging.basicConfig(level=logging.INFO)
