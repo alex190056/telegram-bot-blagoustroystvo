@@ -1,0 +1,177 @@
+import asyncio
+import logging
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.filters import Command
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.memory import MemoryStorage
+
+API_TOKEN = "7914401034:AAHwS6HEGkpfd0p2-QKsk_zLaXWUtZrOk3o"
+ADMIN_ID = 281389805
+
+logging.basicConfig(level=logging.INFO)
+
+bot = Bot(token=API_TOKEN,
+          proxy="socks5://127.0.0.1:10808")
+dp = Dispatcher(storage=MemoryStorage())
+
+# ================== КНОПКИ ==================
+main_kb = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="🏗 Услуги"), KeyboardButton(text="💰 Цены")],
+        [KeyboardButton(text="🚚 Материалы"), KeyboardButton(text="🧮 Калькулятор")],
+        [KeyboardButton(text="📞 Контакты"), KeyboardButton(text="📝 Заявка")]
+    ],
+    resize_keyboard=True
+)
+
+# ================== FSM ==================
+class RequestForm(StatesGroup):
+    service = State()
+    address = State()
+    area = State()
+    phone = State()
+
+class CalcForm(StatesGroup):
+    service = State()
+    area = State()
+
+# ================== START ==================
+@dp.message(Command("start"))
+async def start(message: types.Message):
+    await message.answer(
+        "👋 Добро пожаловать!\n\n"
+        "Благоустройство территорий:\n"
+        "асфальт, плитка, бордюры\n\n"
+        "Выберите раздел👇",
+        reply_markup=main_kb
+    )
+
+# ================== УСЛУГИ ==================
+@dp.message(lambda m: m.text == "🏗 Услуги")
+async def services(message: types.Message):
+    kb = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Асфальт"), KeyboardButton(text="Плитка")],
+            [KeyboardButton(text="Бордюры"), KeyboardButton(text="⬅ Назад")]
+        ],
+        resize_keyboard=True
+    )
+    await message.answer("Выберите услугу:", reply_markup=kb)
+
+@dp.message(lambda m: m.text == "Асфальт")
+async def asfalt(message: types.Message):
+    await message.answer("Асфальтирование дорог и площадок 🚧")
+
+@dp.message(lambda m: m.text == "Плитка")
+async def tile(message: types.Message):
+    await message.answer("Укладка тротуарной плитки 🧱")
+
+@dp.message(lambda m: m.text == "Бордюры")
+async def bord(message: types.Message):
+    await message.answer("Установка бордюров")
+
+@dp.message(lambda m: m.text == "⬅ Назад")
+async def back(message: types.Message):
+    await message.answer("Главное меню:", reply_markup=main_kb)
+
+# ================== ЦЕНЫ ==================
+@dp.message(lambda m: m.text == "💰 Цены")
+async def prices(message: types.Message):
+    await message.answer(
+        "💰 Цены:\n\n"
+        "Асфальт — от 500 ₽/м²\n"
+        "Плитка — от 1200 ₽/м²\n"
+        "Бордюры — от 300 ₽/м.п."
+    )
+
+# ================== МАТЕРИАЛЫ ==================
+@dp.message(lambda m: m.text == "🚚 Материалы")
+async def materials(message: types.Message):
+    await message.answer(
+        "🚚 Материалы:\n\n"
+        "Щебень — от XXXX ₽/т\n"
+        "ПГС — от XXXX ₽/т\n"
+        "Песок — от XXXX ₽/т\n"
+        "Доставка есть 🚛"
+    )
+
+# ================== КАЛЬКУЛЯТОР ==================
+@dp.message(lambda m: m.text == "🧮 Калькулятор")
+async def calc_start(message: types.Message, state: FSMContext):
+    await message.answer("Введите тип (Асфальт / Плитка):")
+    await state.set_state(CalcForm.service)
+
+@dp.message(CalcForm.service)
+async def calc_service(message: types.Message, state: FSMContext):
+    await state.update_data(service=message.text)
+    await message.answer("Введите площадь (м²):")
+    await state.set_state(CalcForm.area)
+
+@dp.message(CalcForm.area)
+async def calc_area(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+
+    try:
+        area = float(message.text)
+    except:
+        await message.answer("Введите число")
+        return
+
+    prices = {
+        "Асфальт": 500,
+        "Плитка": 1200
+    }
+
+    total = area * prices.get(data["service"], 0)
+
+    await message.answer(f"💰 Примерная стоимость: {int(total)} ₽")
+    await state.clear()
+
+# ================== ЗАЯВКА ==================
+@dp.message(lambda m: m.text == "📝 Заявка")
+async def request_start(message: types.Message, state: FSMContext):
+    await message.answer("Что вам нужно?")
+    await state.set_state(RequestForm.service)
+
+@dp.message(RequestForm.service)
+async def req_service(message: types.Message, state: FSMContext):
+    await state.update_data(service=message.text)
+    await message.answer("Адрес:")
+    await state.set_state(RequestForm.address)
+
+@dp.message(RequestForm.address)
+async def req_address(message: types.Message, state: FSMContext):
+    await state.update_data(address=message.text)
+    await message.answer("Площадь:")
+    await state.set_state(RequestForm.area)
+
+@dp.message(RequestForm.area)
+async def req_area(message: types.Message, state: FSMContext):
+    await state.update_data(area=message.text)
+    await message.answer("Телефон:")
+    await state.set_state(RequestForm.phone)
+
+@dp.message(RequestForm.phone)
+async def req_phone(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+
+    text = (
+        "📩 Новая заявка:\n\n"
+        f"Услуга: {data['service']}\n"
+        f"Адрес: {data['address']}\n"
+        f"Площадь: {data['area']}\n"
+        f"Телефон: {message.text}"
+    )
+
+    await bot.send_message(ADMIN_ID, text)
+    await message.answer("✅ Заявка отправлена!")
+    await state.clear()
+
+# ================== RUN ==================
+async def main():
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
