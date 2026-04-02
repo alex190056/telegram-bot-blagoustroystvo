@@ -12,8 +12,7 @@ ADMIN_ID = 281389805
 
 logging.basicConfig(level=logging.INFO)
 
-bot = Bot(token=API_TOKEN,
-          proxy="socks5://127.0.0.1:10808")
+bot = Bot(token=API_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 # ================== КНОПКИ ==================
@@ -43,7 +42,7 @@ async def start(message: types.Message):
     await message.answer(
         "👋 Добро пожаловать!\n\n"
         "Благоустройство территорий:\n"
-        "асфальт, плитка, бордюры\n\n"
+        "асфальтирование, укладка плитки, установка бордюров\n\n"
         "Выберите раздел👇",
         reply_markup=main_kb
     )
@@ -91,9 +90,9 @@ async def prices(message: types.Message):
 async def materials(message: types.Message):
     await message.answer(
         "🚚 Материалы:\n\n"
-        "Щебень — от XXXX ₽/т\n"
-        "ПГС — от XXXX ₽/т\n"
-        "Песок — от XXXX ₽/т\n"
+        "Щебень — от 1500 ₽/т\n"
+        "ПГС — от 1000 ₽/т\n"
+        "Песок — от 800 ₽/т\n"
         "Доставка есть 🚛"
     )
 
@@ -120,7 +119,7 @@ async def calc_area(message: types.Message, state: FSMContext):
         return
 
     prices = {
-        "Асфальт": 500,
+        "Асфальт": 1000,
         "Плитка": 1200
     }
 
@@ -169,6 +168,29 @@ async def req_phone(message: types.Message, state: FSMContext):
     await message.answer("✅ Заявка отправлена!")
     await state.clear()
 
+
+@dp.message(lambda m: m.text == "📞 Контакты")
+async def contacts(message: types.Message):
+    # Если хочешь прямо сделать кнопку звонка:
+    contact_kb = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Позвонить", request_contact=True)],
+            [KeyboardButton(text="⬅ Назад")]
+        ],
+        resize_keyboard=True
+    )
+
+    await message.answer(
+        "📞 Мои контакты:\n\n"
+        "Имя: Александр Геворкян\n"
+        "Телефон: +7 932 552-01-04\n"
+        "Email: stroitexnika1.56@mail.ru\n"
+        "\nВы можете позвонить прямо через Telegram:",
+        reply_markup=contact_kb
+    )
+@dp.message(lambda m: m.text == "⬅ Назад")
+async def back_from_contacts(message: types.Message):
+    await message.answer("Главное меню:", reply_markup=main_kb)
 # ================== RUN ==================
 async def main():
     await dp.start_polling(bot)
