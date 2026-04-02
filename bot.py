@@ -1,5 +1,6 @@
 import os
 import logging
+import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
@@ -8,8 +9,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 
 # ================== Настройки ==================
-API_TOKEN = os.environ.get("7914401034:AAHwS6HEGkpfd0p2-QKsk_zLaXWUtZrOk3o")  # токен бота из переменных окружения
-ADMIN_ID = int(os.environ.get("281389805", 0))  # твой Telegram ID
+API_TOKEN = os.environ.get("7914401034:AAHwS6HEGkpfd0p2-QKsk_zLaXWUtZrOk3o")
+ADMIN_ID = int(os.environ.get("281389805"))  # твой Telegram ID
 
 logging.basicConfig(level=logging.INFO)
 
@@ -37,17 +38,11 @@ class CalcForm(StatesGroup):
     service = State()
     area = State()
 
-# ================== Цены услуг ==================
+# ================== Цены ==================
 service_prices = {
     "Асфальт": 500,
     "Плитка": 1200,
     "Бордюры": 300
-}
-
-material_prices = {
-    "Щебень": 1000,
-    "ПГС": 800,
-    "Песок": 500
 }
 
 # ================== /start ==================
@@ -92,6 +87,12 @@ async def prices(message: types.Message):
     await message.answer(f"💰 Цены:\n{text}")
 
 # ================== Материалы ==================
+material_prices = {
+    "Щебень": 1000,
+    "ПГС": 800,
+    "Песок": 500
+}
+
 @dp.message(lambda m: m.text == "🚚 Материалы")
 async def materials(message: types.Message):
     text = "\n".join([f"{k} — {v} ₽/т" for k, v in material_prices.items()])
@@ -101,15 +102,13 @@ async def materials(message: types.Message):
 @dp.message(lambda m: m.text == "📞 Контакты")
 async def contacts(message: types.Message):
     contact_kb = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="⬅ Назад")]
-        ],
+        keyboard=[[KeyboardButton(text="⬅ Назад")]],
         resize_keyboard=True
     )
     await message.answer(
         "📞 Контакты:\n\n"
-        "Имя: Александр Геворкян\n"
-        "Телефон: +7 932 552 0104\n"
+        "Имя: Александр\n"
+        "Телефон: +7 932 552 01 04\n"
         "Email: drofa528@bk.ru",
         reply_markup=contact_kb
     )
@@ -120,7 +119,7 @@ async def calc_start(message: types.Message, state: FSMContext):
     await message.answer("Введите услугу (Асфальт / Плитка / Бордюры):")
     await state.set_state(CalcForm.service)
 
-@dp.message(CalcForm.service)
+@dp.message(lambda m, state: state.get_state() == CalcForm.service)
 async def calc_service(message: types.Message, state: FSMContext):
     service = message.text
     if service not in service_prices:
@@ -130,7 +129,7 @@ async def calc_service(message: types.Message, state: FSMContext):
     await message.answer("Введите площадь (м²):")
     await state.set_state(CalcForm.area)
 
-@dp.message(CalcForm.area)
+@dp.message(lambda m, state: state.get_state() == CalcForm.area)
 async def calc_area(message: types.Message, state: FSMContext):
     data = await state.get_data()
     service = data["service"]
@@ -151,25 +150,25 @@ async def request_start(message: types.Message, state: FSMContext):
     await message.answer("Что вам нужно?")
     await state.set_state(RequestForm.service)
 
-@dp.message(RequestForm.service)
+@dp.message(lambda m, state: state.get_state() == RequestForm.service)
 async def req_service(message: types.Message, state: FSMContext):
     await state.update_data(service=message.text)
     await message.answer("Адрес:")
     await state.set_state(RequestForm.address)
 
-@dp.message(RequestForm.address)
+@dp.message(lambda m, state: state.get_state() == RequestForm.address)
 async def req_address(message: types.Message, state: FSMContext):
     await state.update_data(address=message.text)
     await message.answer("Площадь:")
     await state.set_state(RequestForm.area)
 
-@dp.message(RequestForm.area)
+@dp.message(lambda m, state: state.get_state() == RequestForm.area)
 async def req_area(message: types.Message, state: FSMContext):
     await state.update_data(area=message.text)
     await message.answer("Телефон:")
     await state.set_state(RequestForm.phone)
 
-@dp.message(RequestForm.phone)
+@dp.message(lambda m, state: state.get_state() == RequestForm.phone)
 async def req_phone(message: types.Message, state: FSMContext):
     data = await state.get_data()
     text = (
@@ -182,9 +181,5 @@ async def req_phone(message: types.Message, state: FSMContext):
     await state.clear()
 
 # ================== Запуск ==================
-async def main():
-    await dp.start_polling(bot)
-
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    asyncio.run(dp.start_polling(bot))
