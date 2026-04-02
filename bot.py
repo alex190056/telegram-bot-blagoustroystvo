@@ -97,35 +97,43 @@ async def materials(message: types.Message):
     )
 
 # ================== КАЛЬКУЛЯТОР ==================
+service_prices = {
+    "Асфальт": 500,
+    "Плитка": 1200,
+    "Бордюры": 300
+}
+
+# Обработчик кнопки калькулятора
 @dp.message(lambda m: m.text == "🧮 Калькулятор")
 async def calc_start(message: types.Message, state: FSMContext):
-    await message.answer("Введите тип (Асфальт / Плитка):")
+    await message.answer("Введите услугу (Асфальт / Плитка / Бордюры):")
     await state.set_state(CalcForm.service)
 
 @dp.message(CalcForm.service)
 async def calc_service(message: types.Message, state: FSMContext):
-    await state.update_data(service=message.text)
+    service = message.text
+    if service not in service_prices:
+        await message.answer("⚠ Неверная услуга. Попробуйте ещё раз.")
+        return
+    await state.update_data(service=service)
     await message.answer("Введите площадь (м²):")
     await state.set_state(CalcForm.area)
 
 @dp.message(CalcForm.area)
 async def calc_area(message: types.Message, state: FSMContext):
     data = await state.get_data()
+    service = data["service"]
 
     try:
         area = float(message.text)
-    except:
-        await message.answer("Введите число")
+    except ValueError:
+        await message.answer("Введите число!")
         return
 
-    prices = {
-        "Асфальт": 1000,
-        "Плитка": 1200
-    }
+    # Рассчёт стоимости
+    total = area * service_prices[service]
 
-    total = area * prices.get(data["service"], 0)
-
-    await message.answer(f"💰 Примерная стоимость: {int(total)} ₽")
+    await message.answer(f"💰 Стоимость услуги {service} на {area} м²: {int(total)} ₽")
     await state.clear()
 
 # ================== ЗАЯВКА ==================
