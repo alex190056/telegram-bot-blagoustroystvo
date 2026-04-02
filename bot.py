@@ -1,4 +1,4 @@
-import asyncio
+import os
 import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
@@ -7,15 +7,16 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 
-API_TOKEN = "7914401034:AAHwS6HEGkpfd0p2-QKsk_zLaXWUtZrOk3o"
-ADMIN_ID = 281389805
+# ================== Настройки ==================
+API_TOKEN = os.environ.get("7914401034:AAHwS6HEGkpfd0p2-QKsk_zLaXWUtZrOk3o")  # токен бота из переменных окружения
+ADMIN_ID = int(os.environ.get("281389805", 0))  # твой Telegram ID
 
 logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-# ================== КНОПКИ ==================
+# ================== Главное меню ==================
 main_kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🏗 Услуги"), KeyboardButton(text="💰 Цены")],
@@ -36,18 +37,30 @@ class CalcForm(StatesGroup):
     service = State()
     area = State()
 
-# ================== START ==================
+# ================== Цены услуг ==================
+service_prices = {
+    "Асфальт": 500,
+    "Плитка": 1200,
+    "Бордюры": 300
+}
+
+material_prices = {
+    "Щебень": 1000,
+    "ПГС": 800,
+    "Песок": 500
+}
+
+# ================== /start ==================
 @dp.message(Command("start"))
 async def start(message: types.Message):
     await message.answer(
-        "👋 Добро пожаловать!\n\n"
-        "Благоустройство территорий:\n"
-        "асфальтирование, укладка плитки, установка бордюров\n\n"
+        "👋 Добро пожаловать!\n"
+        "Благоустройство территорий: асфальт, плитка, бордюры\n"
         "Выберите раздел👇",
         reply_markup=main_kb
     )
 
-# ================== УСЛУГИ ==================
+# ================== Услуги ==================
 @dp.message(lambda m: m.text == "🏗 Услуги")
 async def services(message: types.Message):
     kb = ReplyKeyboardMarkup(
@@ -59,51 +72,49 @@ async def services(message: types.Message):
     )
     await message.answer("Выберите услугу:", reply_markup=kb)
 
-@dp.message(lambda m: m.text == "Асфальт")
-async def asfalt(message: types.Message):
-    await message.answer("Асфальтирование дорог и площадок 🚧")
-
-@dp.message(lambda m: m.text == "Плитка")
-async def tile(message: types.Message):
-    await message.answer("Укладка тротуарной плитки 🧱")
-
-@dp.message(lambda m: m.text == "Бордюры")
-async def bord(message: types.Message):
-    await message.answer("Установка бордюров")
+@dp.message(lambda m: m.text in ["Асфальт", "Плитка", "Бордюры"])
+async def show_service(message: types.Message):
+    descriptions = {
+        "Асфальт": "Асфальтирование дорог и площадок 🚧",
+        "Плитка": "Укладка тротуарной плитки 🧱",
+        "Бордюры": "Установка бордюров"
+    }
+    await message.answer(descriptions[message.text])
 
 @dp.message(lambda m: m.text == "⬅ Назад")
 async def back(message: types.Message):
     await message.answer("Главное меню:", reply_markup=main_kb)
 
-# ================== ЦЕНЫ ==================
+# ================== Цены ==================
 @dp.message(lambda m: m.text == "💰 Цены")
 async def prices(message: types.Message):
-    await message.answer(
-        "💰 Цены:\n\n"
-        "Асфальт — от 500 ₽/м²\n"
-        "Плитка — от 1200 ₽/м²\n"
-        "Бордюры — от 300 ₽/м.п."
-    )
+    text = "\n".join([f"{k} — {v} ₽/м²" for k, v in service_prices.items()])
+    await message.answer(f"💰 Цены:\n{text}")
 
-# ================== МАТЕРИАЛЫ ==================
+# ================== Материалы ==================
 @dp.message(lambda m: m.text == "🚚 Материалы")
 async def materials(message: types.Message):
+    text = "\n".join([f"{k} — {v} ₽/т" for k, v in material_prices.items()])
+    await message.answer(f"🚚 Материалы:\n{text}\nДоставка есть 🚛")
+
+# ================== Контакты ==================
+@dp.message(lambda m: m.text == "📞 Контакты")
+async def contacts(message: types.Message):
+    contact_kb = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="⬅ Назад")]
+        ],
+        resize_keyboard=True
+    )
     await message.answer(
-        "🚚 Материалы:\n\n"
-        "Щебень — от 1500 ₽/т\n"
-        "ПГС — от 1000 ₽/т\n"
-        "Песок — от 800 ₽/т\n"
-        "Доставка есть 🚛"
+        "📞 Контакты:\n\n"
+        "Имя: Александр Геворкян\n"
+        "Телефон: +7 932 552 0104\n"
+        "Email: drofa528@bk.ru",
+        reply_markup=contact_kb
     )
 
-# ================== КАЛЬКУЛЯТОР ==================
-service_prices = {
-    "Асфальт": 500,
-    "Плитка": 1200,
-    "Бордюры": 300
-}
-
-# Обработчик кнопки калькулятора
+# ================== Калькулятор ==================
 @dp.message(lambda m: m.text == "🧮 Калькулятор")
 async def calc_start(message: types.Message, state: FSMContext):
     await message.answer("Введите услугу (Асфальт / Плитка / Бордюры):")
@@ -130,13 +141,11 @@ async def calc_area(message: types.Message, state: FSMContext):
         await message.answer("Введите число!")
         return
 
-    # Рассчёт стоимости
     total = area * service_prices[service]
-
     await message.answer(f"💰 Стоимость услуги {service} на {area} м²: {int(total)} ₽")
     await state.clear()
 
-# ================== ЗАЯВКА ==================
+# ================== Заявка ==================
 @dp.message(lambda m: m.text == "📝 Заявка")
 async def request_start(message: types.Message, state: FSMContext):
     await message.answer("Что вам нужно?")
@@ -163,45 +172,19 @@ async def req_area(message: types.Message, state: FSMContext):
 @dp.message(RequestForm.phone)
 async def req_phone(message: types.Message, state: FSMContext):
     data = await state.get_data()
-
     text = (
-        "📩 Новая заявка:\n\n"
-        f"Услуга: {data['service']}\n"
-        f"Адрес: {data['address']}\n"
-        f"Площадь: {data['area']}\n"
+        f"📩 Новая заявка:\nУслуга: {data['service']}\n"
+        f"Адрес: {data['address']}\nПлощадь: {data['area']}\n"
         f"Телефон: {message.text}"
     )
-
     await bot.send_message(ADMIN_ID, text)
     await message.answer("✅ Заявка отправлена!")
     await state.clear()
 
-
-@dp.message(lambda m: m.text == "📞 Контакты")
-async def contacts(message: types.Message):
-    # Если хочешь прямо сделать кнопку звонка:
-    contact_kb = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="Позвонить", request_contact=True)],
-            [KeyboardButton(text="⬅ Назад")]
-        ],
-        resize_keyboard=True
-    )
-
-    await message.answer(
-        "📞 Мои контакты:\n\n"
-        "Имя: Александр Геворкян\n"
-        "Телефон: +7 932 552-01-04\n"
-        "Email: stroitexnika1.56@mail.ru\n"
-        "\nВы можете позвонить прямо через Telegram:",
-        reply_markup=contact_kb
-    )
-@dp.message(lambda m: m.text == "⬅ Назад")
-async def back_from_contacts(message: types.Message):
-    await message.answer("Главное меню:", reply_markup=main_kb)
-# ================== RUN ==================
+# ================== Запуск ==================
 async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
+    import asyncio
     asyncio.run(main())
